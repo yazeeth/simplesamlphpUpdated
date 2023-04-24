@@ -4,23 +4,22 @@ declare(strict_types=1);
 
 namespace SimpleSAML;
 
-use Exception;
 use PDO;
 use PDOException;
 use PDOStatement;
-use SimpleSAML\Logger;
 
 /**
  * This file implements functions to read and write to a group of database servers.
  *
- * This database class supports a single database, or a primary/secondary configuration with as many defined secondaries
- * as a user would like.
+ * This database class supports a single database, or a master/slave configuration with as many defined slaves as a
+ * user would like.
  *
  * The goal of this class is to provide a single mechanism to connect to a database that can be reused by any component
  * within SimpleSAMLphp including modules. When using this class, the global configuration should be passed here, but in
  * the case of a module that has a good reason to use a different database, such as sqlauth, an alternative config file
  * can be provided.
  *
+ * @author Tyler Antonio, University of Alberta. <tantonio@ualberta.ca>
  * @package SimpleSAMLphp
  */
 
@@ -28,30 +27,28 @@ class Database
 {
     /**
      * This variable holds the instance of the session - Singleton approach.
-     * @var \SimpleSAML\Database[]
      */
-    private static array $instance = [];
+    private static $instance = [];
 
     /**
-     * PDO Object for the Primary database server
+     * PDO Object for the Master database server
      */
-    private PDO $dbPrimary;
+    private $dbMaster;
 
     /**
-     * Array of PDO Objects for configured database secondaries
-     * @var \PDO[]
+     * Array of PDO Objects for configured database slaves
      */
-    private array $dbSecondaries = [];
+    private $dbSlaves = [];
 
     /**
      * Prefix to apply to the tables
      */
-    private string $tablePrefix;
+    private $tablePrefix;
 
     /**
      * Array with information on the last error occurred.
      */
-    private array $lastError = [];
+    private $lastError;
 
 
     /**
@@ -84,30 +81,34 @@ class Database
      */
     private function __construct(Configuration $config)
     {
-        $driverOptions = $config->getOptionalArray('database.driver_options', []);
-        if ($config->getOptionalBoolean('database.persistent', true)) {
-            $driverOptions[PDO::ATTR_PERSISTENT] = true;
+        $driverOptions = $config->getArray('database.driver_options', []);
+        if ($config->getBoolean('database.persistent', true)) {
+            $driverOptions = [PDO::ATTR_PERSISTENT => true];
         }
 
-        // connect to the primary
-        $this->dbPrimary = $this->connect(
+        // connect to the master
+        $this->dbMaster = $this->connect(
             $config->getString('database.dsn'),
-            $config->getOptionalString('database.username', null),
-            $config->getOptionalString('database.password', null),
+            $config->getString('database.username', null),
+            $config->getString('database.password', null),
             $driverOptions
         );
 
-        // connect to any configured secondaries
-        $secondaries = $config->getOptionalArray('database.secondaries', []);
-        foreach ($secondaries as $secondary) {
-            $this->dbSecondaries[] = $this->connect(
-                $secondary['dsn'],
-                $secondary['username'],
-                $secondary['password'],
-                $driverOptions
+        // connect to any configured slaves
+        $slaves = $config->getArray('database.slaves', []);
+        foreach ($slaves as $slave) {
+            array_push(
+                $this->dbSlaves,
+                $this->connect(
+                    $slave['dsn'],
+                    $slave['username'],
+                    $slave['password'],
+                    $driverOptions
+                )
             );
         }
-        $this->tablePrefix = $config->getOptionalString('database.prefix', '');
+
+        $this->tablePrefix = $config->getString('database.prefix', '');
     }
 
 
@@ -121,18 +122,17 @@ class Database
     private static function generateInstanceId(Configuration $config): string
     {
         $assembledConfig = [
-            'primary' => [
+            'master' => [
                 'database.dsn'        => $config->getString('database.dsn'),
-                'database.username'   => $config->getOptionalString('database.username', null),
-                'database.password'   => $config->getOptionalString('database.password', null),
-                'database.prefix'     => $config->getOptionalString('database.prefix', ''),
-                'database.persistent' => $config->getOptionalBoolean('database.persistent', true),
+                'database.username'   => $config->getString('database.username', null),
+                'database.password'   => $config->getString('database.password', null),
+                'database.prefix'     => $config->getString('database.prefix', ''),
+                'database.persistent' => $config->getBoolean('database.persistent', false),
             ],
-
-            'secondaries' => $config->getOptionalArray('database.secondaries', []),
+            'slaves' => $config->getArray('database.slaves', []),
         ];
 
-        return sha1(serialize($assembledConfig));
+        return hash('sha256',serialize($assembledConfig));
     }
 
 
@@ -155,24 +155,24 @@ class Database
 
             return $db;
         } catch (PDOException $e) {
-            throw new Exception("Database error: " . $e->getMessage());
+            throw new \Exception("Database error: " . $e->getMessage());
         }
     }
 
 
     /**
-     * This function randomly selects a secondary database server to query. In the event no secondaries are configured,
-     * it will return the primary.
+     * This function randomly selects a slave database server to query. In the event no slaves are configured, it will
+     * return the master.
      *
      * @return \PDO object
      */
-    private function getSecondary(): PDO
+    private function getSlave(): PDO
     {
-        if (count($this->dbSecondaries) > 0) {
-            $secondaryId = rand(0, count($this->dbSecondaries) - 1);
-            return $this->dbSecondaries[$secondaryId];
+        if (count($this->dbSlaves) > 0) {
+            $slaveId = random_int(0, count($this->dbSlaves) - 1);
+            return $this->dbSlaves[$slaveId];
         } else {
-            return $this->dbPrimary;
+            return $this->dbMaster;
         }
     }
 
@@ -218,7 +218,7 @@ class Database
             return $query;
         } catch (PDOException $e) {
             $this->lastError = $db->errorInfo();
-            throw new Exception("Database error: " . $e->getMessage());
+            throw new \Exception("Database error: " . $e->getMessage());
         }
     }
 
@@ -238,13 +238,13 @@ class Database
             return $db->exec($stmt);
         } catch (PDOException $e) {
             $this->lastError = $db->errorInfo();
-            throw new Exception("Database error: " . $e->getMessage());
+            throw new \Exception("Database error: " . $e->getMessage());
         }
     }
 
 
     /**
-     * This executes queries directly on the primary.
+     * This executes queries directly on the master.
      *
      * @param string $stmt Prepared SQL statement
      * @param array  $params Parameters
@@ -253,12 +253,12 @@ class Database
      */
     public function write(string $stmt, array $params = [])
     {
-        return $this->query($this->dbPrimary, $stmt, $params)->rowCount();
+        return $this->query($this->dbMaster, $stmt, $params)->rowCount();
     }
 
 
     /**
-     * This executes queries on a database server that is determined by this::getSecondary().
+     * This executes queries on a database server that is determined by this::getSlave().
      *
      * @param string $stmt Prepared SQL statement
      * @param array  $params Parameters
@@ -267,7 +267,7 @@ class Database
      */
     public function read(string $stmt, array $params = []): PDOStatement
     {
-        $db = $this->getSecondary();
+        $db = $this->getSlave();
 
         return $this->query($db, $stmt, $params);
     }
@@ -281,16 +281,5 @@ class Database
     public function getLastError(): array
     {
         return $this->lastError;
-    }
-
-
-    /**
-     * Return the name of the PDO-driver
-     *
-     * @return string
-     */
-    public function getDriver(): string
-    {
-        return $this->dbPrimary->getAttribute(PDO::ATTR_DRIVER_NAME);
     }
 }
