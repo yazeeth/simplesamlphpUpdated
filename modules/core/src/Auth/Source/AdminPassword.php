@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace SimpleSAML\Module\core\Auth\Source;
 
-@session_start();
-
 use SimpleSAML\Configuration;
-use SimpleSAML\Error;
+use SimpleSAML\Error\Error;
+use SimpleSAML\Utils\Crypto;
 use Webmozart\Assert\Assert;
 
 /**
@@ -17,8 +16,10 @@ use Webmozart\Assert\Assert;
  * @package SimpleSAMLphp
  */
 
-class AdminPassword extends \SimpleSAML\Module\core\Auth\UserPassBase
+class AdminPassword extends UserPassBase
 {
+    private const SESSION_PREFIX = 'adminpassword_';
+
     /**
      * Constructor for this authentication source.
      *
@@ -27,12 +28,11 @@ class AdminPassword extends \SimpleSAML\Module\core\Auth\UserPassBase
      */
     public function __construct(array $info, array $config)
     {
-        // Call the parent constructor first, as required by the interface
         parent::__construct($info, $config);
 
+        session_start();
         $this->setForcedUsername("admin");
     }
-
 
     /**
      * Attempt to log in using the given username and password.
@@ -49,13 +49,17 @@ class AdminPassword extends \SimpleSAML\Module\core\Auth\UserPassBase
      */
     protected function login(string $username, string $password): array
     {
-        if (!isset($_SESSION["wrongAttemptCount"])) {
-            $_SESSION["wrongAttemptCount"] = 0;
+        $session_key = self::SESSION_PREFIX . session_id();
+
+        if (!isset($_SESSION[$session_key])) {
+            $_SESSION[$session_key] = [
+                'wrongAttemptCount' => 0,
+            ];
         }
 
         $config = Configuration::getInstance();
-        $adminPassword = $config->getString('auth.adminpassword', '123');
-        if ($adminPassword === '123') {
+        $adminPassword = $config->getSecret('auth.adminpassword');
+        if (empty($adminPassword)) {
             // We require that the user changes the password
             throw new Error\Error('NOTSET');
         }
@@ -64,11 +68,12 @@ class AdminPassword extends \SimpleSAML\Module\core\Auth\UserPassBase
             throw new Error\Error('WRONGUSERPASS');
         }
 
-        if (!\SimpleSAML\Utils\Crypto::pwValid($adminPassword, $password) || $_SESSION["wrongAttemptCount"] >= 5) {
-            $_SESSION["wrongAttemptCount"]++;
+        if (!Crypto::pwVerify($password, $adminPassword) || $_SESSION[$session_key]['wrongAttemptCount'] >= 5) {
+            $_SESSION[$session_key]['wrongAttemptCount']++;
             throw new Error\Error('WRONGUSERPASS');
         }
-        $_SESSION["wrongAttemptCount"] = 0;
+        $_SESSION[$session_key]['wrongAttemptCount'] = 0;
+
         return ['user' => ['admin']];
     }
 }
