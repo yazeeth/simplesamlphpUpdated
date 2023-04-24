@@ -1,0 +1,119 @@
+{
+    "name": "simplesamlphp/simplesamlphp",
+    "description": "A PHP implementation of a SAML 2.0 service provider and identity provider.",
+    "type": "project",
+    "keywords": [ "saml2", "shibboleth","oauth","ws-federation","sp","idp" ],
+    "homepage": "https://simplesamlphp.org",
+    "license": "LGPL-2.1-or-later",
+    "authors": [
+        {
+            "name": "Andreas Åkre Solberg",
+            "email": "andreas.solberg@uninett.no"
+        },
+        {
+            "name": "Olav Morken",
+            "email": "olav.morken@uninett.no"
+        },
+        {
+            "name": "Jaime Perez",
+            "email": "jaime.perez@uninett.no"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "SimpleSAML\\": "src/SimpleSAML",
+            "SimpleSAML\\Module\\admin\\": "modules/admin/src",
+            "SimpleSAML\\Module\\core\\": "modules/core/src",
+            "SimpleSAML\\Module\\cron\\": "modules/cron/src",
+            "SimpleSAML\\Module\\exampleauth\\": "modules/exampleauth/src",
+            "SimpleSAML\\Module\\multiauth\\": "modules/multiauth/src",
+            "SimpleSAML\\Module\\saml\\": "modules/saml/src"
+        },
+        "files": ["src/_autoload_modules.php"]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "SimpleSAML\\Test\\": ["tests", "tests/src/SimpleSAML"],
+            "SimpleSAML\\Test\\Module\\admin\\": ["tests//modules/admin/src"],
+            "SimpleSAML\\Test\\Module\\core\\": ["tests/modules/core/src"],
+            "SimpleSAML\\Test\\Module\\cron\\": ["tests/modules/cron/src"],
+            "SimpleSAML\\Test\\Module\\exampleauth\\": ["tests/modules/exampleauth/src"],
+            "SimpleSAML\\Test\\Module\\multiauth\\": ["tests/modules/multiauth/src"],
+            "SimpleSAML\\Test\\Module\\saml\\": ["tests/modules/saml/src"]
+        },
+        "files": ["tests/_autoload_modules.php"]
+    },
+    "require": {
+        "php": "^8.0",
+        "ext-date": "*",
+        "ext-dom": "*",
+        "ext-fileinfo": "*",
+        "ext-filter": "*",
+        "ext-hash": "*",
+        "ext-json": "*",
+        "ext-libxml": "*",
+        "ext-mbstring": "*",
+        "ext-openssl": "*",
+        "ext-pcre": "*",
+        "ext-session": "*",
+        "ext-simplexml": "*",
+        "ext-spl": "*",
+        "ext-xml": "*",
+
+        "gettext/gettext": "^5.6.1",
+        "gettext/translator": "^1.0.1",
+        "phpmailer/phpmailer": "^6.5",
+        "psr/log": "^2.0 || ^3.0",
+        "robrichards/xmlseclibs": "^3.1.1",
+        "simplesamlphp/assert": "^1.0.0",
+        "simplesamlphp/saml2": "^4.6",
+        "simplesamlphp/simplesamlphp-assets-base": "^2.0",
+        "symfony/cache": "^5.4||^6",
+        "symfony/config": "^5.4||^6",
+        "symfony/console": "^5.4||^6",
+        "symfony/dependency-injection": "^5.4||^6",
+        "symfony/filesystem": "^5.4||^6",
+        "symfony/finder": "^5.4||^6",
+        "symfony/framework-bundle": "^5.4||^6",
+        "symfony/http-foundation": "^5.4||^6",
+        "symfony/http-kernel": "^5.4||^6",
+        "symfony/intl": "^5.4||^6",
+        "symfony/routing": "^5.4||^6",
+        "symfony/translation-contracts": "^2.5||^3",
+        "symfony/twig-bridge": "^5.4||^6",
+        "symfony/var-exporter": "^5.4||^6",
+        "symfony/yaml": "^5.4||^6",
+        "twig/intl-extra": "^3.3",
+        "twig/twig": "^3.3.8"
+    },
+    "require-dev": {
+        "mikey179/vfsstream": "~1.6",
+        "simplesamlphp/simplesamlphp-module-adfs": "3.0.x-dev",
+        "simplesamlphp/simplesamlphp-test-framework": "^1.5.1",
+        "simplesamlphp/xml-security": "^1.6.0"
+    },
+    "suggest": {
+        "predis/predis": "Needed if a Redis server is used to store session information",
+        "ext-curl": "Needed in order to check for updates automatically",
+        "ext-memcached": "Needed if a Memcached server is used to store session information",
+        "ext-pdo": "Needed if a database backend is used, either for authentication or to store session information",
+        "ext-mysql": "Needed if a MySQL backend is used, either for authentication or to store session information",
+        "ext-pgsql": "Needed if a PostgreSQL backend is used, either for authentication or to store session information"
+    },
+    "support": {
+        "issues": "https://github.com/simplesamlphp/simplesamlphp/issues",
+        "source": "https://github.com/simplesamlphp/simplesamlphp"
+    },
+    "config": {
+        "allow-plugins": {
+            "composer/package-versions-deprecated": true,
+            "simplesamlphp/composer-module-installer": true,
+            "muglug/package-versions-56": true
+        }
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-master": "3.0.x-dev"
+        }
+    }
+}
