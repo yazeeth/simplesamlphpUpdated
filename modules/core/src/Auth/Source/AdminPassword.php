@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace SimpleSAML\Module\core\Auth\Source;
 
-use SimpleSAML\Assert\Assert;
+@session_start();
+
 use SimpleSAML\Configuration;
 use SimpleSAML\Error;
-use SimpleSAML\Module\core\Auth\UserPassBase;
-use SimpleSAML\Utils;
+use Webmozart\Assert\Assert;
 
 /**
  * Authentication source which verifies the password against
@@ -17,7 +17,7 @@ use SimpleSAML\Utils;
  * @package SimpleSAMLphp
  */
 
-class AdminPassword extends UserPassBase
+class AdminPassword extends \SimpleSAML\Module\core\Auth\UserPassBase
 {
     /**
      * Constructor for this authentication source.
@@ -49,8 +49,12 @@ class AdminPassword extends UserPassBase
      */
     protected function login(string $username, string $password): array
     {
+        if (!isset($_SESSION["wrongAttemptCount"])) {
+            $_SESSION["wrongAttemptCount"] = 0;
+        }
+
         $config = Configuration::getInstance();
-        $adminPassword = $config->getOptionalString('auth.adminpassword', '123');
+        $adminPassword = $config->getString('auth.adminpassword', '123');
         if ($adminPassword === '123') {
             // We require that the user changes the password
             throw new Error\Error('NOTSET');
@@ -60,10 +64,11 @@ class AdminPassword extends UserPassBase
             throw new Error\Error('WRONGUSERPASS');
         }
 
-        $cryptoUtils = new Utils\Crypto();
-        if (!$cryptoUtils->pwValid($adminPassword, $password)) {
+        if (!\SimpleSAML\Utils\Crypto::pwValid($adminPassword, $password) || $_SESSION["wrongAttemptCount"] >= 5) {
+            $_SESSION["wrongAttemptCount"]++;
             throw new Error\Error('WRONGUSERPASS');
         }
+        $_SESSION["wrongAttemptCount"] = 0;
         return ['user' => ['admin']];
     }
 }
