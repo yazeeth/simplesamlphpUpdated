@@ -68,7 +68,9 @@ class AdminPassword extends UserPassBase
             throw new Error\Error('WRONGUSERPASS');
         }
 
-        if (!Crypto::pwVerify($password, $adminPassword) || $_SESSION[$session_key]['wrongAttemptCount'] >= 5) {
+        // Vulnerability modified by Yazeeth MS22038128
+        // Use hash_equals() instead of Crypto::pwVerify() to prevent timing attacks
+        if (!hash_equals(Crypto::generateHash($password), $adminPassword) || $_SESSION[$session_key]['wrongAttemptCount'] >= 5) {
             $_SESSION[$session_key]['wrongAttemptCount']++;
             throw new Error\Error('WRONGUSERPASS');
         }
