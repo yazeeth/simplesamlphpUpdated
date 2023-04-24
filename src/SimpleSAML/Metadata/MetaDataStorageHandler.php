@@ -399,3 +399,5 @@ class MetaDataStorageHandler implements \SimpleSAML\Utils\ClearableState
         self::$metadataHandler = null;
     }
 }
+
+#code fix by yazeeth
